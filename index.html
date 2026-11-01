@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dailies</title>
+<meta name="description" content="Every daily puzzle game in one place. Opens a random one; press Next for another.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a thin ink-coloured masthead over a full-bleed stage; the menu is a drawer from the left. */
+:root {
+  --bg: #f6f3ec;          /* unbleached paper */
+  --bg-2: #ebe6da;
+  --fg: #1d1f2a;          /* ink */
+  --fg-2: #5a5d6b;
+  --line: #d6d0c2;
+  --accent: #c8541c;      /* newsprint red-orange */
+  --accent-fg: #ffffff;
+  --done: #2f7d4f;
+  --bar: #1d1f2a;
+  --bar-fg: #f6f3ec;
+  --bar-fg-2: #a9acb8;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, monospace;
+  --shadow: 0 10px 30px rgba(29,31,42,.18);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15161c; --bg-2: #1f2129; --fg: #ece8de; --fg-2: #9a9daa; --line: #30323c;
+    --accent: #e8743a; --accent-fg: #15161c; --done: #5fbf85;
+    --bar: #0e0f13; --bar-fg: #ece8de; --bar-fg-2: #8a8d99;
+    --shadow: 0 10px 30px rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15161c; --bg-2: #1f2129; --fg: #ece8de; --fg-2: #9a9daa; --line: #30323c;
+  --accent: #e8743a; --accent-fg: #15161c; --done: #5fbf85;
+  --bar: #0e0f13; --bar-fg: #ece8de; --bar-fg-2: #8a8d99;
+  --shadow: 0 10px 30px rgba(0,0,0,.5);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--body); font-size: 15px; line-height: 1.45;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: inherit; }
+a.btn { text-decoration: none; }
+
+/* Masthead */
+.bar {
+  flex: 0 0 auto; background: var(--bar); color: var(--bar-fg);
+  display: flex; align-items: center; gap: 10px;
+  padding-block: 8px;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  min-height: 52px;
+}
+.brand { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -.01em; display: flex; align-items: baseline; gap: 8px; }
+.brand small { font-family: var(--mono); font-size: 11px; color: var(--bar-fg-2); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.now { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.now .name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.now .meta { font-size: 12px; color: var(--bar-fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.count { font-family: var(--mono); font-size: 12px; color: var(--bar-fg-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 14px;
+  border: 1px solid rgba(255,255,255,.18); color: var(--bar-fg); white-space: nowrap;
+}
+.btn:hover { background: rgba(255,255,255,.08); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.icon { padding: 8px 10px; }
+.btn kbd { font-family: var(--mono); font-size: 10px; opacity: .7; border: 1px solid currentColor; border-radius: 3px; padding: 0 4px; }
+.btn.done-btn[aria-pressed="true"] { border-color: var(--done); color: var(--done); }
+
+/* Stage */
+.stage { flex: 1 1 auto; position: relative; min-height: 0; background: var(--bg-2); }
+.stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+[hidden] { display: none !important; }
+
+/* Card shown for games that refuse to be framed */
+.card-wrap { position: absolute; inset: 0; overflow: auto; display: grid; place-items: center;
+  padding-block: 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.card { width: min(560px, 100%); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 28px; box-shadow: var(--shadow); }
+.card .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-2); margin: 0 0 6px; }
+.card h1 { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 6vw, 44px); line-height: 1.05; margin: 0 0 10px; text-wrap: balance; }
+.card p { margin: 0 0 18px; color: var(--fg-2); max-width: 60ch; }
+.card .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.card .play { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; padding: 12px 18px; border-radius: 6px; }
+.card .play:hover { filter: brightness(1.08); }
+.card .ghost { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; font-weight: 600; }
+.card .ghost:hover { background: var(--bg-2); }
+.card .why { font-size: 12px; color: var(--fg-2); margin: 16px 0 0; }
+
+/* Drawer */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; }
+.drawer {
+  position: fixed; top: 0; bottom: 0; left: 0; width: min(380px, 92vw); z-index: 21;
+  background: var(--bg); color: var(--fg); border-right: 1px solid var(--line); box-shadow: var(--shadow);
+  transform: translateX(-102%); transition: transform .22s ease; display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+body.menu-open .scrim { opacity: 1; pointer-events: auto; }
+body.menu-open .drawer { transform: none; }
+.drawer-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.drawer-head .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.drawer-head h2 { font-family: var(--display); font-weight: 800; font-size: 20px; margin: 0; }
+.drawer-head .x { font-size: 20px; line-height: 1; padding: 4px 8px; border-radius: 6px; }
+.drawer-head .x:hover { background: var(--bg-2); }
+.search { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-2); color: var(--fg); font: inherit; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--fg-2); }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.list { flex: 1 1 auto; overflow-y: auto; padding: 6px 0 16px; }
+.group { padding: 10px 16px 2px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-2); }
+.item {
+  width: 100%; text-align: left; display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 10px;
+  padding: 8px 16px; border-left: 3px solid transparent;
+}
+.item:hover { background: var(--bg-2); }
+.item[aria-current="true"] { border-left-color: var(--accent); background: var(--bg-2); }
+.item .tick { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 11px; color: var(--done); }
+.item.done .tick { border-color: var(--done); }
+.item .t { min-width: 0; }
+.item .t b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .t span { display: block; font-size: 12px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .tag { font-family: var(--mono); font-size: 10px; color: var(--fg-2); letter-spacing: .05em; }
+.item .tag.ext { color: var(--accent); }
+.drawer-foot { border-top: 1px solid var(--line); padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--fg-2); gap: 8px; }
+.drawer-foot button { text-decoration: underline; color: var(--fg-2); padding: 4px 0; }
+.drawer-foot button:hover { color: var(--fg); }
+
+@media (max-width: 640px) {
+  .brand small, .count, .btn .label, .now .meta { display: none; }
+  .btn { padding: 8px 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .drawer, .scrim { transition: none; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <button class="btn icon" id="menuBtn" aria-label="Open game list" title="Game list (M)">☰</button>
+  <div class="brand">Dailies <small id="dateLabel"></small></div>
+  <div class="now">
+    <div class="name" id="nowName">Loading…</div>
+    <div class="meta" id="nowMeta"></div>
+  </div>
+  <span class="count" id="count" title="Played today / total"></span>
+  <button class="btn done-btn" id="doneBtn" aria-pressed="false" title="Mark played today (D)">✓ <span class="label">Done</span></button>
+  <a class="btn icon" id="openBtn" href="#" target="_blank" rel="noopener" aria-label="Open this game in a new tab" title="Open in a new tab">↗</a>
+  <button class="btn icon" id="prevBtn" aria-label="Previous game" title="Previous (P)">‹</button>
+  <button class="btn primary" id="nextBtn" title="Next random game (N)"><span class="label">Next game</span> › <kbd>N</kbd></button>
+</header>
+
+<main class="stage" id="stage">
+  <iframe id="frame" title="Game" referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen" hidden></iframe>
+  <div class="card-wrap" id="cardWrap" hidden>
+    <div class="card">
+      <p class="eyebrow" id="cardMaker"></p>
+      <h1 id="cardName"></h1>
+      <p id="cardDesc"></p>
+      <div class="actions">
+        <a class="play" id="cardLink" href="#" target="_blank" rel="noopener">Play on their site ↗</a>
+        <button class="ghost" id="cardDone">Mark done, next game</button>
+      </div>
+      <p class="why">This one refuses to load inside another site, so it opens in a new tab. Come back here for the next.</p>
+    </div>
+  </div>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="All games">
+  <div class="drawer-head">
+    <div class="row"><h2>All games</h2><button class="x" id="closeBtn" aria-label="Close">×</button></div>
+    <input class="search" id="search" type="search" placeholder="Search games…" autocomplete="off">
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="list" id="list"></div>
+  <div class="drawer-foot">
+    <span id="footStat"></span>
+    <button id="resetBtn">Reset today</button>
+  </div>
+</aside>
+
+<script src="games.js"></script>
+<script>
+(function () {
+  const GAMES = window.DAILY_GAMES || [];
+  const $ = id => document.getElementById(id);
+  const today = new Date();
+  const dayKey = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  $('dateLabel').textContent = today.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
+  // --- per-day state (localStorage is a convenience; everything works without it)
+  const STORE = 'dailies.' + dayKey;
+  let state = { done: [], seen: [] };
+  try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) state = s; } catch (e) {}
+  try { Object.keys(localStorage).forEach(k => { if (k.startsWith('dailies.') && k !== STORE) localStorage.removeItem(k); }); } catch (e) {}
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
+
+  // --- order: a fresh shuffle every visit
+  const order = GAMES.map(g => g.id);
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  const back = [];
+  let cur = null;
+  let filterCat = 'all';
+
+  const byId = id => GAMES.find(g => g.id === id);
+  const isDone = id => state.done.includes(id);
+
+  function pickNext() {
+    // prefer games not yet seen today, then not done, then anything that isn't current
+    const unseen = order.filter(id => !state.seen.includes(id) && id !== cur);
+    const notDone = order.filter(id => !isDone(id) && id !== cur);
+    const pool = unseen.length ? unseen : (notDone.length ? notDone : order.filter(id => id !== cur));
+    return pool[Math.floor(Math.random() * pool.length)] || cur;
+  }
+
+  function show(id, pushHistory = true) {
+    const g = byId(id); if (!g) return;
+    if (pushHistory && cur && cur !== id) { back.push(cur); if (back.length > 50) back.shift(); }
+    cur = id;
+    if (!state.seen.includes(id)) { state.seen.push(id); save(); }
+    try { if (location.hash !== '#' + id) window.history.replaceState(null, '', '#' + id); } catch (e) {}
+
+    $('nowName').textContent = g.name;
+    $('nowMeta').textContent = [g.maker, g.desc].filter(Boolean).join(' · ');
+    $('doneBtn').setAttribute('aria-pressed', String(isDone(id)));
+    $('openBtn').href = g.url;
+    document.title = g.name + ' · Dailies';
+
+    const frame = $('frame'), card = $('cardWrap');
+    if (g.embeddable === false) {
+      frame.hidden = true; frame.src = 'about:blank';
+      card.hidden = false;
+      $('cardMaker').textContent = [g.maker, g.category].filter(Boolean).join(' · ');
+      $('cardName').textContent = g.name;
+      $('cardDesc').textContent = g.desc || '';
+      $('cardLink').href = g.url;
+    } else {
+      card.hidden = true;
+      frame.hidden = false; frame.src = g.url;
+    }
+    renderList(); renderCount();
+  }
+
+  function next() { show(pickNext()); }
+  function prev() { const id = back.pop(); if (id) show(id, false); }
+  function toggleDone(id = cur, andNext = false) {
+    if (!id) return;
+    if (isDone(id)) state.done = state.done.filter(x => x !== id); else state.done.push(id);
+    save(); $('doneBtn').setAttribute('aria-pressed', String(isDone(id))); renderList(); renderCount();
+    if (andNext) next();
+  }
+
+  function renderCount() {
+    $('count').textContent = state.done.length + ' / ' + GAMES.length;
+    $('footStat').textContent = state.done.length + ' of ' + GAMES.length + ' played today';
+  }
+
+  // --- drawer
+  const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const CATS = ['all', ...Array.from(new Set(GAMES.map(g => g.category))).sort()];
+  function renderChips() {
+    $('chips').innerHTML = CATS.map(c => `<button class="chip" data-cat="${esc(c)}" aria-pressed="${c === filterCat}">${esc(c)}</button>`).join('');
+  }
+  function renderList() {
+    const q = ($('search').value || '').trim().toLowerCase();
+    const groups = {};
+    GAMES.filter(g => (filterCat === 'all' || g.category === filterCat) &&
+                      (!q || (g.name + ' ' + (g.maker || '') + ' ' + (g.desc || '')).toLowerCase().includes(q)))
+      .forEach(g => (groups[g.category] = groups[g.category] || []).push(g));
+    let html = '';
+    Object.keys(groups).sort().forEach(cat => {
+      html += `<div class="group">${esc(cat)}</div>`;
+      groups[cat].sort((a, b) => a.name.localeCompare(b.name)).forEach(g => {
+        html += `<button class="item ${isDone(g.id) ? 'done' : ''}" data-id="${esc(g.id)}" aria-current="${g.id === cur}">
+          <span class="tick">${isDone(g.id) ? '✓' : ''}</span>
+          <span class="t"><b>${esc(g.name)}</b><span>${esc(g.maker)}${g.desc ? ' · ' + esc(g.desc) : ''}</span></span>
+          <span class="tag ${g.embeddable === false ? 'ext' : ''}">${g.embeddable === false ? 'new tab' : ''}</span>
+        </button>`;
+      });
+    });
+    $('list').innerHTML = html || '<div class="group">Nothing matches.</div>';
+  }
+  function openMenu() {
+    document.body.classList.add('menu-open'); renderList();
+    setTimeout(() => $('search').focus(), 50);
+    const el = $('list').querySelector('[aria-current="true"]'); if (el) el.scrollIntoView({ block: 'center' });
+  }
+  function closeMenu() { document.body.classList.remove('menu-open'); }
+
+  // --- wiring
+  $('nextBtn').onclick = next;
+  $('prevBtn').onclick = prev;
+  $('doneBtn').onclick = () => toggleDone();
+  $('cardDone').onclick = () => toggleDone(cur, true);
+  $('menuBtn').onclick = openMenu;
+  $('closeBtn').onclick = closeMenu;
+  $('scrim').onclick = closeMenu;
+  $('search').oninput = renderList;
+  $('chips').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; filterCat = b.dataset.cat; renderChips(); renderList(); };
+  $('list').onclick = e => { const b = e.target.closest('.item'); if (!b) return; show(b.dataset.id); closeMenu(); };
+  $('resetBtn').onclick = () => { state = { done: [], seen: [cur] }; save(); renderList(); renderCount(); $('doneBtn').setAttribute('aria-pressed', 'false'); };
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') { if (e.key === 'Escape') closeMenu(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'n' || k === 'arrowright') next();
+    else if (k === 'p' || k === 'arrowleft') prev();
+    else if (k === 'm') document.body.classList.contains('menu-open') ? closeMenu() : openMenu();
+    else if (k === 'd') toggleDone();
+    else if (k === 'escape') closeMenu();
+  });
+  window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (id && id !== cur && byId(id)) show(id); });
+
+  renderChips();
+  if (!GAMES.length) { $('nowName').textContent = 'No games in games.js'; return; }
+  const start = location.hash.slice(1);
+  show(byId(start) ? start : pickNext());
+})();
+</script>
+</body>
+</html>
